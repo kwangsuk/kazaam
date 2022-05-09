@@ -234,3 +234,65 @@ func TestShiftWithEndArrayAccess(t *testing.T) {
 		t.FailNow()
 	}
 }
+
+func TestSkipConditionalPath(t *testing.T) {
+	jsonOut := `{"Rating":3,"example":{"old":{"value":3}}}`
+	spec := `{"Rating": "rating.primary.value","example.old": "rating.example","conditional.skip":"path.not.found?"}`
+
+	cfg := getConfig(spec, false)
+	kazaamOut, _ := getTransformTestWrapper(Shift, cfg, testJSONInput)
+	areEqual, _ := checkJSONBytesEqual(kazaamOut, []byte(jsonOut))
+
+	if !areEqual {
+		t.Error("Transformed data does not match expectation.")
+		t.Log("Expected:   ", jsonOut)
+		t.Log("Actual:     ", kazaamOut)
+		t.FailNow()
+	}
+}
+
+func TestOc2SonicConditionalPath(t *testing.T) {
+	jsonOut := `{
+		"sonic-portchannel:sonic-portchannel": {
+		  "PORTCHANNEL": {
+			"PORTCHANNEL_LIST": [
+			  {
+				"name": "PortChannel2",
+				"static": "true"
+			  }
+			]
+		  }
+		}
+	  }`
+	spec := `{"sonic-portchannel:sonic-portchannel.PORTCHANNEL.PORTCHANNEL_LIST.name": "openconfig-interfaces:interfaces.interface[0].name | substr 0 10  == \"PortChannel\":", 
+				"sonic-portchannel:sonic-portchannel.PORTCHANNEL.PORTCHANNEL_LIST.static": "openconfig-interfaces:interfaces.interface[0].openconfig-if-aggregate:aggregation.config.lag-type == \"STATIC\":" }`
+	jsonInput := `{
+		"openconfig-interfaces:interfaces": {
+		  "interface": [
+			{
+			  "name": "PortChannel2",
+			  "config": {
+				"name": "PortChannel2",
+				"type": "iana-if-type:ieee8023adLag"
+			  },
+			  "openconfig-if-aggregate:aggregation": {
+				"config": {
+				  "lag-type": "STATIC"
+				}
+			  }
+			}
+		  ]
+		}
+	  }`
+
+	cfg := getConfig(spec, false)
+	kazaamOut, _ := getTransformTestWrapper(Shift, cfg, jsonInput)
+	areEqual, _ := checkJSONBytesEqual(kazaamOut, []byte(jsonOut))
+
+	if !areEqual {
+		t.Error("Transformed data does not match expectation.")
+		t.Log("Expected:   ", jsonOut)
+		t.Log("Actual:     ", kazaamOut)
+		t.FailNow()
+	}
+}
